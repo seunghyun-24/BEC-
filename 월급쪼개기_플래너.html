@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>월급 쪼개기 플래너</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;700;800&family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#16302B;        /* 통장 잉크 */
+    --paper:#F2F6F3;      /* 민트빛 종이 */
+    --card:#FFFFFF;
+    --deep:#0E4F45;       /* 딥그린 */
+    --coin:#E3A92E;       /* 동전 골드 */
+    --line:#D8E3DD;
+    --muted:#5F7A72;
+    --c1:#0E4F45;  /* 고정비 */
+    --c2:#3E8E7E;  /* 생활비 */
+    --c3:#E3A92E;  /* 저축·투자 */
+    --c4:#C96F4A;  /* 비상금 */
+    --c5:#7A6BA8;  /* 자기계발·자유 */
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:'Noto Sans KR', sans-serif; background:var(--paper); color:var(--ink);
+    background-image:repeating-linear-gradient(0deg, transparent, transparent 31px, rgba(14,79,69,0.045) 31px, rgba(14,79,69,0.045) 32px);
+    min-height:100vh; padding:28px 16px 60px;
+  }
+  .wrap{max-width:1060px; margin:0 auto;}
+  .eyebrow{font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:.22em; color:var(--muted); text-transform:uppercase;}
+  h1{font-family:'Hahmlet',serif; font-weight:800; font-size:clamp(26px,4vw,38px); line-height:1.25; margin:6px 0 4px;}
+  h1 .gold{color:var(--deep); border-bottom:6px solid var(--coin);}
+  .sub{color:var(--muted); font-size:14px; margin-bottom:22px;}
+
+  /* 입력 + 프리셋 */
+  .topbar{display:flex; flex-wrap:wrap; gap:14px; align-items:stretch; margin-bottom:22px;}
+  .salary-box{
+    background:var(--deep); color:#fff; border-radius:14px; padding:16px 20px; flex:1 1 300px;
+    display:flex; align-items:center; gap:14px; box-shadow:0 8px 20px rgba(14,79,69,.18);
+  }
+  .salary-box label{font-size:13px; opacity:.85; line-height:1.5;}
+  .salary-input{display:flex; align-items:baseline; gap:6px; margin-left:auto;}
+  .salary-input input{
+    font-family:'IBM Plex Mono',monospace; font-size:30px; font-weight:600; width:130px;
+    background:transparent; border:none; border-bottom:2px solid rgba(255,255,255,.5); color:#fff; text-align:right; outline:none;
+  }
+  .salary-input input:focus{border-bottom-color:var(--coin);}
+  .salary-input span{font-size:14px; opacity:.85;}
+  .presets{flex:1 1 320px; display:flex; flex-direction:column; gap:8px; justify-content:center;}
+  .presets .plabel{font-size:12px; color:var(--muted);}
+  .pbtns{display:flex; gap:8px; flex-wrap:wrap;}
+  .pbtn{
+    font-family:'Noto Sans KR',sans-serif; font-size:13px; font-weight:500; cursor:pointer;
+    border:1.5px solid var(--deep); background:var(--card); color:var(--deep);
+    padding:8px 14px; border-radius:999px; transition:all .15s;
+  }
+  .pbtn:hover{background:var(--deep); color:#fff;}
+  .pbtn.active{background:var(--deep); color:#fff; box-shadow:0 3px 8px rgba(14,79,69,.25);}
+  .pbtn:focus-visible{outline:3px solid var(--coin); outline-offset:2px;}
+
+  /* 메인 그리드 */
+  .main{display:grid; grid-template-columns:390px 1fr; gap:22px; align-items:start;}
+  @media (max-width:860px){ .main{grid-template-columns:1fr;} }
+
+  /* 도넛 패널 */
+  .donut-panel{
+    background:var(--card); border:1px solid var(--line); border-radius:16px; padding:24px;
+    position:sticky; top:16px;
+  }
+  @media (max-width:860px){ .donut-panel{position:static;} }
+  .donut-holder{position:relative; width:100%; max-width:300px; margin:0 auto;}
+  .donut-center{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none;}
+  .donut-center .amt{font-family:'IBM Plex Mono',monospace; font-size:26px; font-weight:600; color:var(--deep);}
+  .donut-center .lbl{font-size:11px; color:var(--muted); letter-spacing:.1em;}
+  .legend{margin-top:18px; display:flex; flex-direction:column; gap:6px;}
+  .legend .row{display:flex; align-items:center; gap:8px; font-size:13px;}
+  .legend .dot{width:11px; height:11px; border-radius:3px; flex:none;}
+  .legend .name{flex:1;}
+  .legend .val{font-family:'IBM Plex Mono',monospace; font-weight:600;}
+  .status{margin-top:16px; padding:11px 14px; border-radius:10px; font-size:13px; line-height:1.55;}
+  .status.ok{background:#E8F3EC; color:#1D5C3F;}
+  .status.warn{background:#FBEEE4; color:#9A4C1E;}
+
+  /* 통장 카드 */
+  .books{display:flex; flex-direction:column; gap:14px;}
+  .book{
+    background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden;
+    display:grid; grid-template-columns:10px 1fr; transition:box-shadow .15s;
+  }
+  .book:hover{box-shadow:0 6px 16px rgba(22,48,43,.08);}
+  .book .spine{background:var(--bc);}
+  .book .body{padding:16px 18px;}
+  .book .head{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;}
+  .book .title{font-family:'Hahmlet',serif; font-weight:700; font-size:17px;}
+  .book .pct{font-family:'IBM Plex Mono',monospace; font-size:14px; font-weight:600; color:var(--bc);}
+  .book .amount{margin-left:auto; font-family:'IBM Plex Mono',monospace; font-size:21px; font-weight:600; color:var(--deep);}
+  .book .amount small{font-size:12px; color:var(--muted); font-family:'Noto Sans KR',sans-serif; font-weight:400;}
+  .book input[type=range]{
+    width:100%; margin:12px 0 8px; accent-color:var(--bc); height:22px; cursor:pointer;
+  }
+  .book input[type=range]:focus-visible{outline:3px solid var(--coin); outline-offset:2px; border-radius:4px;}
+  .book .detail{font-size:12.5px; color:var(--muted); line-height:1.7;}
+  .book .detail b{color:var(--ink); font-weight:500;}
+
+  /* 자동이체 순서 */
+  .flow{margin-top:34px; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:24px;}
+  .flow h2, .tips h2{font-family:'Hahmlet',serif; font-size:21px; font-weight:700; margin-bottom:4px;}
+  .flow .desc, .tips .desc{font-size:13px; color:var(--muted); margin-bottom:16px;}
+  .flow-steps{display:flex; gap:0; flex-wrap:wrap; align-items:stretch;}
+  .fstep{flex:1 1 150px; min-width:140px; padding:14px; border-left:3px solid var(--line); position:relative;}
+  .fstep .when{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--coin); font-weight:600; letter-spacing:.08em;}
+  .fstep .what{font-weight:700; font-size:14px; margin:3px 0;}
+  .fstep .amt{font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--deep); font-weight:600;}
+  .fstep .memo{font-size:12px; color:var(--muted); line-height:1.55; margin-top:4px;}
+
+  /* 꿀팁 */
+  .tips{margin-top:26px;}
+  .tip-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px;}
+  .tip{
+    background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px;
+    border-top:4px solid var(--deep);
+  }
+  .tip:nth-child(3n+2){border-top-color:var(--coin);}
+  .tip:nth-child(3n){border-top-color:var(--c4);}
+  .tip h3{font-size:15px; font-weight:700; margin-bottom:7px; line-height:1.4;}
+  .tip p{font-size:13px; color:#3E5750; line-height:1.7;}
+  .tip p b{color:var(--ink);}
+  .foot{margin-top:30px; font-size:12px; color:var(--muted); line-height:1.7;}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">MONTHLY SALARY PLANNER</div>
+  <h1>월급날, <span class="gold">쪼개는 순서</span>가 통장 잔고를 바꾼다</h1>
+  <p class="sub">실수령액을 넣고 슬라이더를 움직여 보세요. 남는 돈을 저축하는 게 아니라, 저축하고 남은 돈을 쓰는 구조를 만드는 도구입니다.</p>
+
+  <div class="topbar">
+    <div class="salary-box">
+      <label>월 실수령액<br>(세후, 통장에 꽂히는 돈)</label>
+      <div class="salary-input">
+        <input type="number" id="salary" value="470" min="0" step="5" aria-label="월 실수령액 (만원)">
+        <span>만원</span>
+      </div>
+    </div>
+    <div class="presets">
+      <div class="plabel">추천 배분 프리셋 — 누르면 슬라이더가 한 번에 세팅돼요</div>
+      <div class="pbtns">
+        <button class="pbtn active" data-preset="standard">균형 표준형 50·20·20·5·5</button>
+        <button class="pbtn" data-preset="sprint">목돈 스퍼트형 (저축 40%)</button>
+        <button class="pbtn" data-preset="solo">자취 현실형 (고정비 높음)</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="donut-panel">
+      <div class="donut-holder">
+        <svg id="donut" viewBox="0 0 200 200" role="img" aria-label="월급 배분 도넛 차트"></svg>
+        <div class="donut-center">
+          <div class="amt" id="centerAmt">470만</div>
+          <div class="lbl">월 실수령액</div>
+        </div>
+      </div>
+      <div class="legend" id="legend"></div>
+      <div class="status ok" id="status">합계 100% — 완벽하게 배분됐어요.</div>
+    </div>
+
+    <div class="books" id="books"></div>
+  </div>
+
+  <div class="flow">
+    <h2>자동이체 세팅 — "월급일 다음날 아침"이 골든타임</h2>
+    <p class="desc">쓰고 남은 돈을 옮기는 게 아니라, 월급이 들어오자마자 돈이 알아서 흩어지게 만드는 순서입니다. 아래 금액은 위 슬라이더와 실시간 연동돼요.</p>
+    <div class="flow-steps">
+      <div class="fstep">
+        <div class="when">월급일 D+1 · 1순위</div>
+        <div class="what">저축·투자 통장으로</div>
+        <div class="amt" id="fAmt3">-</div>
+        <div class="memo">연금저축 50만 + IRP 25만 자동이체를 먼저. 나머지는 ISA·적금으로. "선저축"의 실체가 이 이체 하나.</div>
+      </div>
+      <div class="fstep">
+        <div class="when">월급일 D+1 · 2순위</div>
+        <div class="what">고정비 통장으로</div>
+        <div class="amt" id="fAmt1">-</div>
+        <div class="memo">월세·관리비·통신·보험 자동이체를 전부 이 통장에 연결. 연체 방지 + 지출 파악이 한 번에.</div>
+      </div>
+      <div class="fstep">
+        <div class="when">월급일 D+1 · 3순위</div>
+        <div class="what">비상금 파킹통장으로</div>
+        <div class="amt" id="fAmt4">-</div>
+        <div class="memo">목표는 월 생활비의 3~6배. 목표액 도달하면 이 비율을 저축·투자로 돌리기.</div>
+      </div>
+      <div class="fstep">
+        <div class="when">그 후 남는 것</div>
+        <div class="what">생활비 + 자유 통장</div>
+        <div class="amt" id="fAmt25">-</div>
+        <div class="memo">체크카드를 이 통장에 연결. 잔액이 곧 이번 달 남은 예산 — 가계부가 필요 없어지는 구조.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tips">
+    <h2 style="margin-top:26px">사회초년생 월급 관리 꿀팁 7</h2>
+    <p class="desc">순서대로 하나씩만 실행해도 충분해요.</p>
+    <div class="tip-grid">
+      <div class="tip"><h3>1. 통장은 4개면 충분하다</h3><p>월급(허브) → <b>고정비 / 소비 / 저축·투자 / 비상금(파킹)</b>. 더 쪼개면 관리가 일이 되고, 덜 쪼개면 돈이 섞여요. 소비 통장에만 체크카드를 물려두면 잔액 = 남은 예산.</p></div>
+      <div class="tip"><h3>2. 저축률보다 "자동화율"</h3><p>의지로 하는 저축은 3개월을 못 가요. 자동이체를 걸어두면 의지가 필요 없어져요. <b>월급일 D+1</b>로 날짜를 맞추는 게 핵심 — 쓸 시간을 주지 않는 것.</p></div>
+      <div class="tip"><h3>3. 연금 75만원의 마법</h3><p>연금저축 50만 + IRP 25만 = 월 75만이면 연 900만 한도가 딱 채워져요. 총급여 5,500만 초과 기준 <b>연말에 118.8만원 환급</b> — 그 자체로 수익률 13.2% 확정 상품인 셈.</p></div>
+      <div class="tip"><h3>4. 비상금이 완성되기 전엔 투자 금지</h3><p>생활비 3~6개월치(대략 600만~1,000만)를 파킹통장에 먼저. 이게 없으면 주가 하락 + 급전 필요가 겹칠 때 <b>손실 확정 매도</b>를 하게 돼요. 비상금은 수익률이 아니라 보험이에요.</p></div>
+      <div class="tip"><h3>5. 소비 통장은 "주 단위"로 생각</h3><p>월 예산 120만이면 <b>주 30만</b>으로 끊어서 보세요. 월 단위는 감이 안 오지만 주 단위는 오늘 저녁 약속을 잡을지 말지가 판단돼요.</p></div>
+      <div class="tip"><h3>6. 월급 인상분의 절반은 없는 돈</h3><p>연봉이 오르면 생활 수준도 같이 올라서 저축이 안 늘어요(라이프스타일 인플레이션). <b>인상분의 50%는 자동이체 증액</b>부터 하고 나머지만 소비로. 이 습관 하나가 10년 뒤 자산을 가른다는 게 정설.</p></div>
+      <div class="tip"><h3>7. 성과급은 월급이 아니다</h3><p>성과급은 월 배분에 넣지 말고 <b>별도 규칙</b>으로: 예) 50% ISA, 30% 비상금 보충, 20% 보상 소비. 다음 해 4월 건보료 정산 추가 징수도 성과급의 몫이에요.</p></div>
+    </div>
+  </div>
+
+  <p class="foot">※ 금액 단위: 만원. 비율 합이 100%가 아니면 도넛에 회색 "미배정" 조각이 떠요 — 그 돈은 계획 없이 사라질 확률이 높은 돈입니다. 본 도구는 일반 정보이며 투자 자문이 아닙니다.</p>
+</div>
+
+<script>
+const CATS = [
+  {key:'fix',  name:'고정비',        color:'var(--c1)', hex:'#0E4F45', detail:'월세 · 관리비 · 통신 · 보험 · 구독료 — <b>계약을 바꿔야만 줄어드는 돈</b>. 30% 이하가 건강 신호.'},
+  {key:'live', name:'생활비',        color:'var(--c2)', hex:'#3E8E7E', detail:'식비 · 교통 · 쇼핑 · 모임 — 체크카드 하나로만 결제하면 <b>잔액이 곧 예산</b>이 됩니다.'},
+  {key:'save', name:'저축 · 투자',   color:'var(--c3)', hex:'#E3A92E', detail:'연금저축 50만 + IRP 25만(세액공제 한도) 먼저, 남으면 <b>ISA · 적금</b> 순서로.'},
+  {key:'emrg', name:'비상금',        color:'var(--c4)', hex:'#C96F4A', detail:'파킹통장에 쌓기. 생활비 3~6개월치 도달하면 이 비율을 저축·투자로 이관.'},
+  {key:'grow', name:'자기계발 · 자유', color:'var(--c5)', hex:'#7A6BA8', detail:'책 · 강의 · 운동 · 여행 적립 — 죄책감 없는 소비 칸을 만들어야 <b>계획이 오래갑니다</b>.'},
+];
+const PRESETS = {
+  standard:{fix:30, live:25, save:30, emrg:10, grow:5},
+  sprint:  {fix:28, live:20, save:40, emrg:8,  grow:4},
+  solo:    {fix:40, live:25, save:22, emrg:8,  grow:5},
+};
+let pct = {...PRESETS.standard};
+
+const booksEl = document.getElementById('books');
+CATS.forEach(c=>{
+  const el = document.createElement('div');
+  el.className='book'; el.style.setProperty('--bc', c.hex);
+  el.innerHTML = `
+    <div class="spine"></div>
+    <div class="body">
+      <div class="head">
+        <span class="title">${c.name}</span>
+        <span class="pct" id="pct-${c.key}">0%</span>
+        <span class="amount" id="amt-${c.key}">0<small> 만원</small></span>
+      </div>
+      <input type="range" min="0" max="70" step="1" value="${pct[c.key]}" id="rg-${c.key}" aria-label="${c.name} 비율">
+      <div class="detail">${c.detail}</div>
+    </div>`;
+  booksEl.appendChild(el);
+  el.querySelector('input').addEventListener('input', e=>{
+    pct[c.key] = +e.target.value;
+    document.querySelectorAll('.pbtn').forEach(b=>b.classList.remove('active'));
+    render();
+  });
+});
+
+document.querySelectorAll('.pbtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    pct = {...PRESETS[btn.dataset.preset]};
+    CATS.forEach(c=> document.getElementById('rg-'+c.key).value = pct[c.key]);
+    document.querySelectorAll('.pbtn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    render();
+  });
+});
+document.getElementById('salary').addEventListener('input', render);
+
+function arcPath(cx,cy,r,ir,a0,a1){
+  const p=(a,rr)=>[cx+rr*Math.cos(a), cy+rr*Math.sin(a)];
+  const large = (a1-a0)>Math.PI ? 1:0;
+  const [x0,y0]=p(a0,r),[x1,y1]=p(a1,r),[x2,y2]=p(a1,ir),[x3,y3]=p(a0,ir);
+  return `M${x0},${y0} A${r},${r} 0 ${large} 1 ${x1},${y1} L${x2},${y2} A${ir},${ir} 0 ${large} 0 ${x3},${y3} Z`;
+}
+
+function render(){
+  const salary = Math.max(0, +document.getElementById('salary').value || 0);
+  const total = CATS.reduce((s,c)=>s+pct[c.key],0);
+  document.getElementById('centerAmt').textContent = salary.toLocaleString()+'만';
+
+  // 도넛
+  const svg = document.getElementById('donut');
+  svg.innerHTML='';
+  let angle = -Math.PI/2;
+  const segs = CATS.map(c=>({hex:c.hex, v:pct[c.key]}));
+  if(total<100) segs.push({hex:'#CBD6D0', v:100-total});
+  const denom = Math.max(total,100);
+  segs.forEach(s=>{
+    if(s.v<=0) return;
+    const sweep = s.v/denom*Math.PI*2;
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', arcPath(100,100,92,58,angle+0.012,angle+sweep-0.012));
+    path.setAttribute('fill', s.hex);
+    svg.appendChild(path);
+    angle+=sweep;
+  });
+
+  // 범례 + 카드 금액
+  const legend=document.getElementById('legend'); legend.innerHTML='';
+  CATS.forEach(c=>{
+    const amt = Math.round(salary*pct[c.key]/100);
+    document.getElementById('pct-'+c.key).textContent = pct[c.key]+'%';
+    document.getElementById('amt-'+c.key).innerHTML = amt.toLocaleString()+'<small> 만원</small>';
+    const row=document.createElement('div'); row.className='row';
+    row.innerHTML=`<span class="dot" style="background:${c.hex}"></span><span class="name">${c.name}</span><span class="val">${pct[c.key]}% · ${amt.toLocaleString()}만</span>`;
+    legend.appendChild(row);
+  });
+
+  // 상태
+  const st=document.getElementById('status');
+  if(total===100){ st.className='status ok'; st.textContent='합계 100% — 모든 돈에 이름표가 붙었어요.'; }
+  else if(total<100){ st.className='status warn'; st.textContent=`합계 ${total}% — ${100-total}%(${Math.round(salary*(100-total)/100).toLocaleString()}만원)가 미배정 상태예요. 이름 없는 돈이 제일 먼저 사라져요.`; }
+  else { st.className='status warn'; st.textContent=`합계 ${total}% — 실수령액보다 ${total-100}%p 초과 배분됐어요. 슬라이더를 조금 내려주세요.`; }
+
+  // 자동이체 흐름 금액
+  const a=k=>Math.round(salary*pct[k]/100);
+  document.getElementById('fAmt3').textContent = a('save').toLocaleString()+'만원';
+  document.getElementById('fAmt1').textContent = a('fix').toLocaleString()+'만원';
+  document.getElementById('fAmt4').textContent = a('emrg').toLocaleString()+'만원';
+  document.getElementById('fAmt25').textContent = (a('live')+a('grow')).toLocaleString()+'만원';
+}
+render();
+</script>
+</body>
+</html>
